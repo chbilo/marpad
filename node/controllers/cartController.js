@@ -81,16 +81,16 @@ const clearCart = async (req, res) => {
 
 const checkout = async (req, res) => {
     const cart = await Cart.findOne({ user: req.user._id }).populate('items.product')
-    if (!cart || cart.items.length === 0) {
-        return res.status(400).json({ message: 'Cart is empty' })
-    }
-
     const requestedAdditionalAmount = Number(req.body?.additionalAmount ?? 0)
     if (!Number.isFinite(requestedAdditionalAmount) || requestedAdditionalAmount < 0) {
         return res.status(400).json({ message: 'Additional amount must be a non-negative number' })
     }
     const additionalAmount = Math.round(requestedAdditionalAmount * 100) / 100
-    const subtotal = cart.items.reduce((sum, item) => {
+    if ((!cart || cart.items.length === 0) && additionalAmount <= 0) {
+        return res.status(400).json({ message: 'Cart is empty' })
+    }
+
+    const subtotal = (cart?.items || []).reduce((sum, item) => {
         return sum + (item.product ? Number(item.product.price) * item.quantity : 0)
     }, 0)
     const total = Math.round((subtotal + additionalAmount) * 100) / 100
@@ -98,14 +98,16 @@ const checkout = async (req, res) => {
         return res.status(400).json({ message: 'Cart total is invalid' })
     }
 
-    const user = await User.findById(req.user._id)
-    if (!user || user.balance < total) {
-        return res.status(400).json({ message: 'Insufficient balance' })
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $inc: { balance: -total } },
+        { returnDocument: 'after', runValidators: true }
+    )
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' })
     }
-    user.balance -= total
-    await user.save()
 
-    const purchasedItems = cart.items.map((item) => ({
+    const purchasedItems = (cart?.items || []).map((item) => ({
         product: item.product ? {
             _id: item.product._id,
             name: item.product.name,
@@ -114,14 +116,16 @@ const checkout = async (req, res) => {
         quantity: item.quantity
     }))
 
-    cart.items = []
-    await cart.save()
+    if (cart) {
+        cart.items = []
+        await cart.save()
+    }
 
     res.json({
         message: 'Purchase completed',
         total,
         additionalAmount,
-        balance: user.balance,
+        balance: Math.round(user.balance * 100) / 100,
         items: purchasedItems
     })
 }

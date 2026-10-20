@@ -12,6 +12,7 @@ const ProductsPage = () => {
     const [products, setProducts] = useState([])
     const [cart, setCart] = useState({ items: [] })
     const [additionalAmount, setAdditionalAmount] = useState(() => String(location.state?.additionalAmount ?? 0))
+    const [customAmount, setCustomAmount] = useState('')
     const [isLoadingProducts, setIsLoadingProducts] = useState(true)
     const [isLoadingCart, setIsLoadingCart] = useState(true)
     const [pendingProductId, setPendingProductId] = useState('')
@@ -78,14 +79,34 @@ const ProductsPage = () => {
         updateCart(axios.delete(`http://localhost:7100/api/cart/items/${productId}`, cartConfig))
     }
 
-    const cartItems = cart.items || []
-    const cartTotal = cartItems.reduce((total, item) => {
+    const handleAddCustomAmount = () => {
+        const amount = Number(customAmount)
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setError('יש להזין סכום חיובי עבור הפריט "אחר".')
+            return
+        }
+        setError('')
+        setAdditionalAmount(String(Math.round(amount * 100) / 100))
+        setCustomAmount('')
+    }
+
+    const cartItems = (cart.items || []).map((item) => ({ ...item, cartItemType: 'product' }))
+    if (Number(additionalAmount) > 0) {
+        cartItems.push({
+            cartItemType: 'custom',
+            product: { _id: 'custom-additional', name: 'אחר', price: Number(additionalAmount) },
+            quantity: 1
+        })
+    }
+    const cartTotal = (cart.items || []).reduce((total, item) => {
         const product = item.product
         return total + (product ? Number(product.price) * item.quantity : 0)
     }, 0)
     const parsedAdditionalAmount = Number(additionalAmount)
-    const isAdditionalAmountValid = Number.isFinite(parsedAdditionalAmount) && parsedAdditionalAmount >= 0
-    const orderTotal = cartTotal + (isAdditionalAmountValid ? parsedAdditionalAmount : 0)
+    const validAdditionalAmount = Number.isFinite(parsedAdditionalAmount) && parsedAdditionalAmount > 0
+        ? parsedAdditionalAmount
+        : 0
+    const orderTotal = cartTotal + validAdditionalAmount
     const currentBalance = Number(userInfo.balance ?? 0)
     const expectedBalance = currentBalance - orderTotal
 
@@ -102,18 +123,16 @@ const ProductsPage = () => {
                     isLoading={isLoadingCart}
                     total={orderTotal}
                     additionalAmount={additionalAmount}
-                    isAdditionalAmountValid={isAdditionalAmountValid}
                     expectedBalance={expectedBalance}
-                    onAdditionalAmountChange={setAdditionalAmount}
                     onQuantityChange={handleQuantityChange}
                     onRemove={handleRemoveFromCart}
+                    onRemoveCustomAmount={() => setAdditionalAmount('0')}
+                    onCustomAmountChange={setAdditionalAmount}
                 />
 
                 <section className="store-products" aria-labelledby="products-title">
                     {isLoadingProducts ? (
                         <p role="status">טוען מוצרים...</p>
-                    ) : products.length === 0 ? (
-                        <p>אין מוצרים להצגה כרגע.</p>
                     ) : (
                         <ul className="product-list">
                             {products.map((product) => (
@@ -132,6 +151,24 @@ const ProductsPage = () => {
                                     </button>
                                 </li>
                             ))}
+                            <li className="product-row" key="custom-amount">
+                                <div className="store-product__details">
+                                    <h2>אחר</h2>
+                                    <label className="form-field">
+                                        <span>הזנת סכום בש״ח</span>
+                                        <input
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            value={customAmount}
+                                            onChange={(event) => setCustomAmount(event.target.value)}
+                                        />
+                                    </label>
+                                </div>
+                                <button className="action-button" type="button" onClick={handleAddCustomAmount}>
+                                    הוספת אחר לעגלה
+                                </button>
+                            </li>
                         </ul>
                     )}
                 </section>

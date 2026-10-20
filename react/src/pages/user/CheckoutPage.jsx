@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import formatPrice from '../../utils/formatPrice'
+import formatAccountStatus from '../../utils/formatAccountStatus'
 import { AppContext } from '../../context/AppContext'
 
 const API_URL = 'http://localhost:7100/api/cart'
@@ -44,7 +45,6 @@ const CheckoutPage = () => {
     const total = subtotal + additionalAmount
     const balance = Number(userInfo.balance ?? 0)
     const expectedBalance = balance - total
-    const isInsufficient = expectedBalance < 0
 
     if (!token) {
         return <Navigate to="/" replace />
@@ -61,9 +61,7 @@ const CheckoutPage = () => {
             localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
             setItems([])
         } catch (requestError) {
-            setError(requestError.response?.data?.message === 'Insufficient balance'
-                ? 'אין מספיק יתרה לביצוע הקנייה.'
-                : requestError.response?.data?.message || 'אישור הקנייה נכשל. נסו שוב.')
+            setError(requestError.response?.data?.message || 'אישור הקנייה נכשל. נסו שוב.')
         } finally {
             setIsPaying(false)
         }
@@ -73,7 +71,7 @@ const CheckoutPage = () => {
         return (
             <section className="checkout-page" aria-labelledby="checkout-title">
                 <h1 className="page-title" id="checkout-title">הקנייה הושלמה</h1>
-                <p className="checkout-success" role="status">הסכום קוזז מהיתרה שלך.</p>
+                <p className="checkout-success" role="status">הקנייה נרשמה והחשבון עודכן.</p>
                 <ul className="checkout-items">
                     {receipt.items.map((item, index) => (
                         <li className="checkout-item" key={`${item.product?._id || 'item'}-${index}`}>
@@ -83,19 +81,18 @@ const CheckoutPage = () => {
                     ))}
                 </ul>
                 <div className="checkout-totals">
-                    <div><span>סך הכול שקוזז</span><strong>{formatPrice(receipt.total)}</strong></div>
+                    <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(receipt.total)}</strong></div>
                     {receipt.additionalAmount > 0 && (
                         <div><span>תשלום נוסף</span><strong>{formatPrice(receipt.additionalAmount)}</strong></div>
                     )}
-                    <div><span>יתרה לאחר הקנייה</span><strong>{formatPrice(receipt.balance)}</strong></div>
+                    <div>
+                        <span>{formatAccountStatus(receipt.balance).label} לאחר הקנייה</span>
+                        <strong>{formatAccountStatus(receipt.balance).amount}</strong>
+                    </div>
                 </div>
                 <Link className="action-button" to="/welcome">חזרה לחשבון</Link>
             </section>
         )
-    }
-
-    if (!isLoading && items.length > 0 && isInsufficient) {
-        return <Navigate to="/products" replace state={{ additionalAmount }} />
     }
 
     return (
@@ -107,7 +104,7 @@ const CheckoutPage = () => {
             {error && <p className="form-error" role="alert">{error}</p>}
             {isLoading ? (
                 <p role="status">טוען סיכום...</p>
-            ) : items.length === 0 ? (
+            ) : items.length === 0 && additionalAmount <= 0 ? (
                 <div className="checkout-empty">
                     <p>אין מוצרים בעגלה.</p>
                     <Link className="action-button" to="/products">בחירת מוצרים</Link>
@@ -124,20 +121,28 @@ const CheckoutPage = () => {
                                 <strong>{formatPrice(Number(item.product.price) * item.quantity)}</strong>
                             </li>
                         ))}
+                        {additionalAmount > 0 && (
+                            <li className="checkout-item" key="custom-additional">
+                                <div>
+                                    <h2>אחר</h2>
+                                    <p>סכום שהוזן ידנית</p>
+                                </div>
+                                <strong>{formatPrice(additionalAmount)}</strong>
+                            </li>
+                        )}
                     </ul>
                     <div className="checkout-totals">
                         {additionalAmount > 0 && (
                             <div><span>תשלום נוסף</span><strong>{formatPrice(additionalAmount)}</strong></div>
                         )}
-                        <div><span>סך הכול לתשלום</span><strong>{formatPrice(total)}</strong></div>
-                        <div className={isInsufficient ? 'checkout-balance checkout-balance--insufficient' : 'checkout-balance'}>
-                            <span>{isInsufficient ? 'סכום שחסר' : 'יתרה לאחר הקנייה'}</span>
-                            <strong>{formatPrice(isInsufficient ? Math.abs(expectedBalance) : expectedBalance)}</strong>
+                        <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(total)}</strong></div>
+                        <div className="checkout-balance">
+                            <span>{formatAccountStatus(expectedBalance).label} לאחר הקנייה</span>
+                            <strong>{formatAccountStatus(expectedBalance).amount}</strong>
                         </div>
                     </div>
-                    {!isInsufficient && <p className="checkout-balance-note">הסכום יקוזז מהיתרה הרשומה בחשבונך.</p>}
-                    <button className="action-button checkout-pay" type="button" disabled={isPaying || isInsufficient} onClick={handlePay}>
-                        {isPaying ? 'מעדכן יתרה...' : 'אישור קנייה'}
+                    <button className="action-button checkout-pay" type="button" disabled={isPaying} onClick={handlePay}>
+                        {isPaying ? 'רושם קנייה...' : 'אישור קנייה'}
                     </button>
                 </>
             )}

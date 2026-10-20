@@ -5,8 +5,7 @@ import { AppContext } from '../../context/AppContext'
 
 const ExistingUserPage = () => {
     const { setUserInfo } = useContext(AppContext)
-    const [name, setName] = useState('')
-    const [password, setPassword] = useState('')
+    const [code, setCode] = useState('')
     const [error, setError] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const navigate = useNavigate()
@@ -17,10 +16,7 @@ const ExistingUserPage = () => {
         setIsSubmitting(true)
 
         try {
-            const response = await axios.post('http://localhost:7100/api/auth/login', {
-                name,
-                password
-            })
+            const response = await axios.post('http://localhost:7100/api/auth/login', { code })
             if (!response.data.accessToken) {
                 throw new Error('Login response did not include an access token')
             }
@@ -37,35 +33,26 @@ const ExistingUserPage = () => {
 
     return (
         <form className="login-form" onSubmit={handleSubmit}>
-            <h1 className="page-title">
-                הזנת שם וסיסמה
-            </h1>
+            <h1 className="page-title">כניסה לחשבון</h1>
             <label className="form-field">
-                <span>שם</span>
-                <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    autoComplete="name"
-                    required
-                />
-            </label>
-            <label className="form-field">
-                <span>סיסמה</span>
+                <span>תעודת זהות</span>
                 <input
                     type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
                     autoComplete="current-password"
+                    inputMode="numeric"
+                    pattern="[0-9]{9}"
+                    minLength={9}
+                    maxLength={9}
                     required
                 />
             </label>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="action-button" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'מתחבר...' : 'אישור'}
+                {isSubmitting ? 'מתחבר...' : 'כניסה'}
             </button>
-            <Link className="action-button action-button--secondary" to="/">
-                חזרה
-            </Link>
+            <Link className="action-button action-button--secondary" to="/">חזרה</Link>
         </form>
     )
 }

@@ -32,7 +32,11 @@ const updateUser = async (req, res) => {
         }
         user.name = name
         if (balance !== undefined && req.user.roles === "Admin") {
-            user.balance = balance
+            const parsedBalance = Number(balance)
+            if (!Number.isFinite(parsedBalance)) {
+                return res.status(400).json({ message: "Balance must be a valid number" })
+            }
+            user.balance = Math.round(parsedBalance * 100) / 100
         }
         await user.save()
         const updatedUser = await User.findById(id).select("-password")

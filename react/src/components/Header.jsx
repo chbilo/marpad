@@ -1,6 +1,5 @@
 import { useContext } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import AdminTopUpNotifications from './AdminTopUpNotifications'
 import { AppContext } from '../context/AppContext'
 
 const Header = () => {
@@ -22,7 +21,6 @@ const Header = () => {
                 <Link className="site-header__brand" to="/" aria-current={location.pathname === '/' ? 'page' : undefined}>
                     My App
                 </Link>
-                <AdminTopUpNotifications key={localStorage.getItem('accessToken') || 'guest'} />
                 {isLoggedIn && (
                     <button className="site-header__logout" type="button" onClick={handleLogout}>
                         יציאה

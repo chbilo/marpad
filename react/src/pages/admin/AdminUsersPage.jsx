@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link, Navigate } from 'react-router-dom'
-import formatPrice from '../../utils/formatPrice'
+import formatAccountStatus from '../../utils/formatAccountStatus'
 
 const USERS_URL = 'http://localhost:7100/api/users'
 
 const AdminUsersPage = () => {
-    let userInfo = {}
+    let userInfo
     try {
         userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     } catch {
@@ -84,8 +84,8 @@ const AdminUsersPage = () => {
                         <input value={name} onChange={(event) => setName(event.target.value)} required />
                     </label>
                     <label className="form-field">
-                        <span>יתרה בש״ח</span>
-                        <input type="number" min="0" step="0.01" value={balance} onChange={(event) => setBalance(event.target.value)} required />
+                        <span>יתרה (+) / חוב (-) בש״ח</span>
+                        <input type="number" step="0.01" value={balance} onChange={(event) => setBalance(event.target.value)} required />
                     </label>
                     <div className="admin-form-actions">
                         <button className="action-button" type="submit">שמירת שינויים</button>
@@ -100,7 +100,7 @@ const AdminUsersPage = () => {
                             <div className="admin-product-info">
                                 <h2>{user.name}</h2>
                                 <p>{user.roles}</p>
-                                <p>{formatPrice(user.balance || 0)}</p>
+                                <p>{formatAccountStatus(user.balance).label}: {formatAccountStatus(user.balance).amount}</p>
                             </div>
                             <div className="admin-product-actions">
                                 <button className="action-button action-button--secondary" type="button" onClick={() => {

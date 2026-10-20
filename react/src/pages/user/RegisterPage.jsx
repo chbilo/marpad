@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 
 const RegisterPage = () => {
     const [name, setName] = useState('')
-    const [password, setPassword] = useState('')
+    const [code, setCode] = useState('')
     const [error, setError] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isRegistered, setIsRegistered] = useState(false)
@@ -15,7 +15,7 @@ const RegisterPage = () => {
         setIsSubmitting(true)
 
         try {
-            await axios.post('http://localhost:7100/api/auth/register', { name, password })
+            await axios.post('http://localhost:7100/api/auth/register', { name, code })
             setIsRegistered(true)
         } catch (requestError) {
             setError(requestError.response?.data?.message || 'ההרשמה נכשלה. נסו שוב.')
@@ -28,7 +28,7 @@ const RegisterPage = () => {
         return (
             <section className="register-form" aria-labelledby="register-success-title">
                 <h1 className="page-title" id="register-success-title">ההרשמה הושלמה</h1>
-                <p className="register-success">אפשר להתחבר עכשיו עם הסיסמה שבחרת.</p>
+                <p className="register-success">אפשר להתחבר עכשיו עם תעודת הזהות שלך.</p>
                 <Link className="action-button" to="/existing-user">מעבר להתחברות</Link>
                 <Link className="action-button action-button--secondary" to="/">חזרה</Link>
             </section>
@@ -48,12 +48,16 @@ const RegisterPage = () => {
                 />
             </label>
             <label className="form-field">
-                <span>סיסמה</span>
+                <span>תעודת זהות</span>
                 <input
                     type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
                     autoComplete="new-password"
+                    inputMode="numeric"
+                    pattern="[0-9]{9}"
+                    minLength={9}
+                    maxLength={9}
                     required
                 />
             </label>
