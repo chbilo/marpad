@@ -79,12 +79,18 @@ const CheckoutPage = () => {
                             <strong>{formatPrice(Number(item.product?.price || 0) * item.quantity)}</strong>
                         </li>
                     ))}
+                    {receipt.additionalAmount > 0 && (
+                        <li className="checkout-item" key="custom-additional">
+                            <div>
+                                <h2>אחר</h2>
+                                <p>סכום שהוזן ידנית</p>
+                            </div>
+                            <strong>{formatPrice(receipt.additionalAmount)}</strong>
+                        </li>
+                    )}
                 </ul>
                 <div className="checkout-totals">
                     <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(receipt.total)}</strong></div>
-                    {receipt.additionalAmount > 0 && (
-                        <div><span>תשלום נוסף</span><strong>{formatPrice(receipt.additionalAmount)}</strong></div>
-                    )}
                     <div>
                         <span>{formatAccountStatus(receipt.balance).label} לאחר הקנייה</span>
                         <strong>{formatAccountStatus(receipt.balance).amount}</strong>
@@ -132,9 +138,6 @@ const CheckoutPage = () => {
                         )}
                     </ul>
                     <div className="checkout-totals">
-                        {additionalAmount > 0 && (
-                            <div><span>תשלום נוסף</span><strong>{formatPrice(additionalAmount)}</strong></div>
-                        )}
                         <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(total)}</strong></div>
                         <div className="checkout-balance">
                             <span>{formatAccountStatus(expectedBalance).label} לאחר הקנייה</span>

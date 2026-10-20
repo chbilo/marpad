@@ -11,6 +11,7 @@ const ProductsPage = () => {
     const location = useLocation()
     const [products, setProducts] = useState([])
     const [cart, setCart] = useState({ items: [] })
+    const [searchTerm, setSearchTerm] = useState('')
     const [additionalAmount, setAdditionalAmount] = useState(() => String(location.state?.additionalAmount ?? 0))
     const [customAmount, setCustomAmount] = useState('')
     const [isLoadingProducts, setIsLoadingProducts] = useState(true)
@@ -109,6 +110,10 @@ const ProductsPage = () => {
     const orderTotal = cartTotal + validAdditionalAmount
     const currentBalance = Number(userInfo.balance ?? 0)
     const expectedBalance = currentBalance - orderTotal
+    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase()
+    const filteredProducts = products.filter((product) => (
+        product.name.toLocaleLowerCase().includes(normalizedSearchTerm)
+    ))
 
     return (
         <div className="store-page">
@@ -134,42 +139,56 @@ const ProductsPage = () => {
                     {isLoadingProducts ? (
                         <p role="status">טוען מוצרים...</p>
                     ) : (
-                        <ul className="product-list">
-                            {products.map((product) => (
-                                <li className="product-row" key={product._id}>
+                        <>
+                            <label className="form-field store-products__search">
+                                <span>חיפוש מוצרים</span>
+                                <input
+                                    type="search"
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                    placeholder="הקלידו שם מוצר"
+                                />
+                            </label>
+                            <ul className="product-list">
+                                {filteredProducts.map((product) => (
+                                    <li className="product-row" key={product._id}>
+                                        <div className="store-product__details">
+                                            <h2>{product.name}</h2>
+                                            <p>{formatPrice(product.price)}</p>
+                                        </div>
+                                        <button
+                                            className="action-button"
+                                            type="button"
+                                            disabled={pendingProductId === product._id}
+                                            onClick={() => handleAddToCart(product._id)}
+                                        >
+                                            {pendingProductId === product._id ? 'מוסיף...' : 'הוספה לעגלה'}
+                                        </button>
+                                    </li>
+                                ))}
+                                {filteredProducts.length === 0 && (
+                                    <li className="product-row">לא נמצאו מוצרים מתאימים.</li>
+                                )}
+                                <li className="product-row" key="custom-amount">
                                     <div className="store-product__details">
-                                        <h2>{product.name}</h2>
-                                        <p>{formatPrice(product.price)}</p>
+                                        <h2>אחר</h2>
+                                        <label className="form-field">
+                                            <span>הזנת סכום בש״ח</span>
+                                            <input
+                                                type="number"
+                                                min="0.01"
+                                                step="0.01"
+                                                value={customAmount}
+                                                onChange={(event) => setCustomAmount(event.target.value)}
+                                            />
+                                        </label>
                                     </div>
-                                    <button
-                                        className="action-button"
-                                        type="button"
-                                        disabled={pendingProductId === product._id}
-                                        onClick={() => handleAddToCart(product._id)}
-                                    >
-                                        {pendingProductId === product._id ? 'מוסיף...' : 'הוספה לעגלה'}
+                                    <button className="action-button" type="button" onClick={handleAddCustomAmount}>
+                                        הוספת אחר לעגלה
                                     </button>
                                 </li>
-                            ))}
-                            <li className="product-row" key="custom-amount">
-                                <div className="store-product__details">
-                                    <h2>אחר</h2>
-                                    <label className="form-field">
-                                        <span>הזנת סכום בש״ח</span>
-                                        <input
-                                            type="number"
-                                            min="0.01"
-                                            step="0.01"
-                                            value={customAmount}
-                                            onChange={(event) => setCustomAmount(event.target.value)}
-                                        />
-                                    </label>
-                                </div>
-                                <button className="action-button" type="button" onClick={handleAddCustomAmount}>
-                                    הוספת אחר לעגלה
-                                </button>
-                            </li>
-                        </ul>
+                            </ul>
+                        </>
                     )}
                 </section>
             </div>
