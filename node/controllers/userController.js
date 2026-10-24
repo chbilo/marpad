@@ -4,8 +4,11 @@ const getAllUsers = async (req, res) => {
     if (req.user.roles !== "Admin") {
         return res.status(403).json({ message: "Forbidden" })
     }
-    const users = await User.find().select("-password")
-    res.json(users)
+    const users = await User.find().select("-password").lean()
+    res.json(users.map((user) => ({
+        ...user,
+        accountType: user.accountType || (user.roles === 'Admin' ? 'Staff' : 'Student')
+    })))
 }
 
 const getUserById = async (req, res) => {
@@ -21,7 +24,7 @@ const getUserById = async (req, res) => {
 }
 
 const updateUser = async (req, res) => {
-    const { id, name, balance } = req.body
+    const { id, name, className, accountType, balance } = req.body
     if (id === req.user._id.toString() || req.user.roles === "Admin") {
         if (!id || !name) {
             return res.status(400).json({ message: "id and name are required" })
@@ -31,6 +34,16 @@ const updateUser = async (req, res) => {
             return res.status(404).json({ message: "User not found" })
         }
         user.name = name
+        if (accountType !== undefined && req.user.roles === "Admin") {
+            if (!['Student', 'Staff', 'Other'].includes(accountType)) {
+                return res.status(400).json({ message: "Account type must be Student, Staff, or Other" })
+            }
+            user.accountType = accountType
+            if (accountType !== 'Student') user.className = ''
+        }
+        if (className !== undefined && req.user.roles === "Admin") {
+            user.className = user.accountType === 'Student' ? String(className).trim() : ''
+        }
         if (balance !== undefined && req.user.roles === "Admin") {
             const parsedBalance = Number(balance)
             if (!Number.isFinite(parsedBalance)) {
@@ -55,7 +68,5 @@ const deleteUser = async (req, res) => {
     await user.deleteOne()
     res.send("erased")
 }
-
-
 
 module.exports = { getAllUsers, getUserById, updateUser, deleteUser }

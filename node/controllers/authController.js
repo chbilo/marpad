@@ -1,15 +1,7 @@
 const User = require("../models/users")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { createHmac } = require('crypto')
-
-const normalizeCode = (code) => code.trim()
-
-const getCodeLookup = (code) => createHmac('sha256', process.env.ACCESS_TOKEN_SECRET)
-    .update(`login-code:${normalizeCode(code)}`)
-    .digest('hex')
-
-const isValidCode = (code) => typeof code === 'string' && /^\d{9}$/.test(code.trim())
+const { normalizeCode, getCodeLookup, isValidCode } = require('../utils/loginCode')
 
 const createLoginResponse = (res, user) => {
     const userInfo = {

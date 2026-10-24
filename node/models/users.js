@@ -4,6 +4,16 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    className: {
+        type: String,
+        trim: true,
+        default: ""
+    },
+    accountType: {
+        type: String,
+        enum: ['Student', 'Staff', 'Other'],
+        default: 'Student'
+    },
     password: {
         type: String,
         required: true
