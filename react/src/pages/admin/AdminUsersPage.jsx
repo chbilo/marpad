@@ -4,7 +4,7 @@ import { Link, Navigate } from 'react-router-dom'
 import formatAccountStatus from '../../utils/formatAccountStatus'
 
 const USERS_URL = 'http://localhost:7100/api/users'
-const ACCOUNT_TYPE_LABELS = { Student: 'תלמיד', Staff: 'צוות', Other: 'אורח' }
+const ACCOUNT_TYPE_LABELS = { Student: 'תלמידה', Staff: 'צוות', Other: 'אורח' }
 
 const ImportCard = ({ accountTypeMode, title, description, authConfig, onImported }) => {
     const [file, setFile] = useState(null)
@@ -111,6 +111,7 @@ const ImportCard = ({ accountTypeMode, title, description, authConfig, onImporte
                                     <th>שם</th>
                                     {accountTypeMode === 'all' && <th>סוג</th>}
                                     <th>כיתה</th>
+                                    <th>יתרה</th>
                                     <th>תוצאה</th>
                                 </tr>
                             </thead>
@@ -121,6 +122,11 @@ const ImportCard = ({ accountTypeMode, title, description, authConfig, onImporte
                                         <td>{row.name || '—'}</td>
                                         {accountTypeMode === 'all' && <td>{ACCOUNT_TYPE_LABELS[row.accountType] || '—'}</td>}
                                         <td>{row.className || '—'}</td>
+                                        <td>
+                                            {row.balance === null
+                                                ? '—'
+                                                : `${formatAccountStatus(row.balance).label}: ${formatAccountStatus(row.balance).amount}`}
+                                        </td>
                                         <td>
                                             {row.status === 'new' ? 'חדש' : null}
                                             {row.status === 'exists' ? 'כבר קיים — ידולג' : null}
@@ -195,6 +201,12 @@ const TransferSection = ({ title, description, accountType, importDescription, a
             <p>{description}</p>
         </header>
         <div className="user-transfer-grid">
+            <ExportCard
+                accountType={accountType}
+                title="ייצוא לקובץ"
+                description="הורדת רשימה עם היתרה והחוב."
+                authConfig={authConfig}
+            />
             <ImportCard
                 accountTypeMode={accountType}
                 title="ייבוא מקובץ"
@@ -202,15 +214,46 @@ const TransferSection = ({ title, description, accountType, importDescription, a
                 authConfig={authConfig}
                 onImported={onImported}
             />
-            <ExportCard
-                accountType={accountType}
-                title="ייצוא לקובץ"
-                description="הורדת רשימה עם היתרה והחוב."
-                authConfig={authConfig}
-            />
         </div>
     </section>
 )
+
+const UserDirectoryGroup = ({ accountType, users, isLoading, onEdit, onDelete }) => {
+    const title = accountType === 'Student' ? 'התלמידות הרשומות' : accountType === 'Staff' ? 'אנשי הצוות הרשומים' : 'האורחים הרשומים'
+    const accountTypeLabel = ACCOUNT_TYPE_LABELS[accountType]
+
+    return (
+        <section className="user-directory-group" aria-label={title}>
+            <header className="user-directory-group__heading">
+                <h3>{title}</h3>
+                <span>{users.length}</span>
+            </header>
+            {isLoading ? <p role="status">טוען חשבונות...</p> : users.length === 0 ? (
+                <p className="user-directory-empty">אין חשבונות בקטגוריה זו.</p>
+            ) : (
+                <ul className="product-list">
+                    {users.map((user) => {
+                        const accountStatus = formatAccountStatus(user.balance)
+                        return (
+                            <li className="product-row admin-product-row" key={user._id}>
+                                <div className="admin-product-info">
+                                    <h4>{user.name}</h4>
+                                    {accountType === 'Student' && <p>כיתה: {user.className || 'לא הוגדרה'}</p>}
+                                    <p>סוג חשבון: {accountTypeLabel}</p>
+                                    <p>{accountStatus.label}: {accountStatus.amount}</p>
+                                </div>
+                                <div className="admin-product-actions">
+                                    <button className="action-button action-button--secondary" type="button" onClick={() => onEdit(user)}>עריכה</button>
+                                    <button className="action-button action-button--danger" type="button" onClick={() => onDelete(user._id)}>מחיקה</button>
+                                </div>
+                            </li>
+                        )
+                    })}
+                </ul>
+            )}
+        </section>
+    )
+}
 
 const AdminUsersPage = () => {
     let userInfo
@@ -312,39 +355,56 @@ const AdminUsersPage = () => {
             {error && <p className="form-error" role="alert">{error}</p>}
 
             <section className="user-file-management" aria-labelledby="user-file-management-title">
-                <header className="user-file-management__heading">
-                    <h2 id="user-file-management-title">ייבוא וייצוא חשבונות</h2>
-                    <p>בחרו סוג חשבון כדי להעלות רשימה או להוריד קובץ עם היתרות.</p>
-                </header>
                 <TransferSection
-                    title="כל סוגי החשבונות"
-                    description="ייבוא או ייצוא של תלמידים, צוות ואורחים בקובץ אחד."
-                    accountType="all"
-                    importDescription="יש לכלול תעודת זהות, שם וסוג משתמש (תלמיד, צוות או אורח). כיתה נדרשת לתלמידים."
+                    title="תלמידות"
+                    description="ניהול רשימות התלמידות והחובות שלהן."
+                    accountType="Student"
+                    importDescription="חובה לכלול תעודת זהות, שם וכיתה. ניתן להוסיף עמודת יתרה או סכום."
                     authConfig={authConfig}
                     onImported={refreshUsers}
                 />
-                <TransferSection
-                    title="תלמידים"
-                    description="ניהול רשימות התלמידים והחובות שלהם."
+                <UserDirectoryGroup
                     accountType="Student"
-                    importDescription="חובה לכלול תעודת זהות, שם וכיתה."
-                    authConfig={authConfig}
-                    onImported={refreshUsers}
+                    users={usersByType.Student}
+                    isLoading={isLoading}
+                    onEdit={startEditing}
+                    onDelete={handleDelete}
                 />
                 <TransferSection
                     title="צוות"
                     description="ניהול רשימות אנשי הצוות והחובות שלהם."
                     accountType="Staff"
-                    importDescription="חובה לכלול תעודת זהות ושם. עמודת כיתה אינה נדרשת."
+                    importDescription="חובה לכלול תעודת זהות ושם. עמודת כיתה אינה נדרשת; ניתן להוסיף עמודת יתרה או סכום."
                     authConfig={authConfig}
                     onImported={refreshUsers}
                 />
+                <UserDirectoryGroup
+                    accountType="Staff"
+                    users={usersByType.Staff}
+                    isLoading={isLoading}
+                    onEdit={startEditing}
+                    onDelete={handleDelete}
+                />
                 <TransferSection
                     title="אורחים"
-                    description="ניהול רשימות האורחים והחובות שלהם."
+                    description="ניהול רשימות האורחים והיתרות שלהם. אורח אינו יכול לצבור חוב."
                     accountType="Other"
-                    importDescription="חובה לכלול תעודת זהות ושם. עמודת כיתה אינה נדרשת."
+                    importDescription="חובה לכלול תעודת זהות ושם. עמודת כיתה אינה נדרשת; ניתן להוסיף עמודת יתרה או סכום. יתרה שלילית אינה מותרת."
+                    authConfig={authConfig}
+                    onImported={refreshUsers}
+                />
+                <UserDirectoryGroup
+                    accountType="Other"
+                    users={usersByType.Other}
+                    isLoading={isLoading}
+                    onEdit={startEditing}
+                    onDelete={handleDelete}
+                />
+                <TransferSection
+                    title="כל סוגי החשבונות"
+                    description="ייבוא או ייצוא של תלמידות, צוות ואורחים בקובץ אחד."
+                    accountType="all"
+                    importDescription="יש לכלול תעודת זהות, שם וסוג משתמש (תלמידה, צוות או אורח). כיתה נדרשת לתלמידות. ניתן להוסיף עמודת יתרה או סכום."
                     authConfig={authConfig}
                     onImported={refreshUsers}
                 />
@@ -360,7 +420,7 @@ const AdminUsersPage = () => {
                     <label className="form-field">
                         <span>סוג חשבון</span>
                         <select value={accountType} onChange={(event) => setAccountType(event.target.value)}>
-                            <option value="Student">תלמיד</option>
+                            <option value="Student">תלמידה</option>
                             <option value="Staff">צוות</option>
                             <option value="Other">אורח</option>
                         </select>
@@ -382,44 +442,6 @@ const AdminUsersPage = () => {
                 </form>
             )}
 
-            <section className="user-directory" aria-labelledby="user-directory-title">
-                <header className="user-directory__heading">
-                    <h2 id="user-directory-title">חשבונות במערכת</h2>
-                    <p>החשבונות מחולקים לפי סוג. בכל חשבון מוצגים פרטי המשתמש, ההרשאה והיתרה או החוב.</p>
-                </header>
-                {isLoading ? <p role="status">טוען חשבונות...</p> : (
-                    ['Student', 'Staff', 'Other'].map((type) => (
-                        <section className="user-directory-group" key={type}>
-                            <header className="user-directory-group__heading">
-                                <h3>{type === 'Student' ? 'תלמידים' : type === 'Staff' ? 'צוות' : 'אורחים'}</h3>
-                                <span>{usersByType[type].length}</span>
-                            </header>
-                            {usersByType[type].length === 0 ? <p className="user-directory-empty">אין חשבונות בקטגוריה זו.</p> : (
-                                <ul className="product-list">
-                                    {usersByType[type].map((user) => {
-                                        const accountStatus = formatAccountStatus(user.balance)
-                                        return (
-                                            <li className="product-row admin-product-row" key={user._id}>
-                                                <div className="admin-product-info">
-                                                    <h4>{user.name}</h4>
-                                                    {type === 'Student' && <p>כיתה: {user.className || 'לא הוגדרה'}</p>}
-                                                    <p>סוג חשבון: {ACCOUNT_TYPE_LABELS[type]}</p>
-                                                    <p>הרשאה: {user.roles === 'Admin' ? 'מנהל' : 'משתמש'}</p>
-                                                    <p>{accountStatus.label}: {accountStatus.amount}</p>
-                                                </div>
-                                                <div className="admin-product-actions">
-                                                    <button className="action-button action-button--secondary" type="button" onClick={() => startEditing(user)}>עריכה</button>
-                                                    <button className="action-button action-button--danger" type="button" onClick={() => handleDelete(user._id)}>מחיקה</button>
-                                                </div>
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
-                            )}
-                        </section>
-                    ))
-                )}
-            </section>
         </section>
     )
 }

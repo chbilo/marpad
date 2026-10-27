@@ -56,6 +56,12 @@ const approveRequest = async (req, res) => {
         return res.status(409).json({ message: 'Top-up request was already handled' })
     }
 
+    const approvalFields = {
+        'pendingTopUps.$.status': 'approved',
+        'pendingTopUps.$.approvedAt': new Date()
+    }
+    if (req.user._id) approvalFields['pendingTopUps.$.approvedBy'] = req.user._id
+
     const updatedUser = await User.findOneAndUpdate(
         {
             _id: user._id,
@@ -63,11 +69,7 @@ const approveRequest = async (req, res) => {
         },
         {
             $inc: { balance: request.amount },
-            $set: {
-                'pendingTopUps.$.status': 'approved',
-                'pendingTopUps.$.approvedAt': new Date(),
-                'pendingTopUps.$.approvedBy': req.user._id
-            }
+            $set: approvalFields
         },
         { returnDocument: 'after' }
     ).select('name balance')
@@ -104,17 +106,19 @@ const rejectRequest = async (req, res) => {
         return res.status(409).json({ message: 'Top-up request was already handled' })
     }
 
+    const rejectionFields = {
+        'pendingTopUps.$.status': 'rejected',
+        'pendingTopUps.$.rejectedAt': new Date()
+    }
+    if (req.user._id) rejectionFields['pendingTopUps.$.rejectedBy'] = req.user._id
+
     const updatedUser = await User.findOneAndUpdate(
         {
             _id: user._id,
             pendingTopUps: { $elemMatch: { _id: request._id, status: 'pending' } }
         },
         {
-            $set: {
-                'pendingTopUps.$.status': 'rejected',
-                'pendingTopUps.$.rejectedAt': new Date(),
-                'pendingTopUps.$.rejectedBy': req.user._id
-            }
+            $set: rejectionFields
         },
         { returnDocument: 'after' }
     ).select('name')

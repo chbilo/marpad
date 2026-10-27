@@ -13,7 +13,8 @@ const headerAliases = {
     code: ['תעודתזהות', 'מספרזהות', 'תז', 'studentid', 'id', 'logincode'],
     name: ['שם', 'שםהתלמיד', 'fullname', 'name'],
     className: ['כיתה', 'מחלקה', 'classname', 'class'],
-    accountType: ['סוגמשתמש', 'סוגחשבון', 'סוג', 'accounttype', 'type', 'category']
+    accountType: ['סוגמשתמש', 'סוגחשבון', 'סוג', 'accounttype', 'type', 'category'],
+    balance: ['יתרה', 'סכום', 'balance', 'amount']
 }
 
 const getCellText = (cell) => {
@@ -36,7 +37,7 @@ const normalizeStudentCode = (value) => {
 
 const normalizeAccountType = (value) => {
     const normalized = normalizeHeader(value)
-    if (['student', 'תלמיד', 'תלמידה', 'תלמידים'].includes(normalized)) return 'Student'
+    if (['student', 'תלמיד', 'תלמידה', 'תלמידים', 'תלמידות'].includes(normalized)) return 'Student'
     if (['staff', 'employee', 'employees', 'צוות', 'עובד', 'עובדת', 'עובדים', 'עובדות'].includes(normalized)) return 'Staff'
     if (['other', 'guest', 'guests', 'אחר', 'אחרים', 'אורח', 'אורחת', 'אורחים', 'אורחות'].includes(normalized)) return 'Other'
     return ''
@@ -103,6 +104,8 @@ const parseStudentWorkbook = async (buffer, accountTypeMode = 'Student') => {
         const rawCode = getCellText(row.getCell(columns.code))
         const code = normalizeStudentCode(rawCode)
         const name = getCellText(row.getCell(columns.name))
+        const rawBalance = columns.balance ? getCellText(row.getCell(columns.balance)) : ''
+        const balance = rawBalance === '' ? 0 : Number(rawBalance)
         const rowAccountType = accountTypeMode === 'all'
             ? normalizeAccountType(getCellText(row.getCell(columns.accountType)))
             : accountTypeMode
@@ -115,8 +118,18 @@ const parseStudentWorkbook = async (buffer, accountTypeMode = 'Student') => {
         if (!rowAccountType) errors.push('סוג משתמש לא תקין — יש לרשום תלמיד, צוות או אורח')
         if (rowAccountType === 'Student' && !className) errors.push('חסרה כיתה')
         if (!isValidCode(code)) errors.push('תעודת הזהות חייבת להכיל 9 ספרות')
+        if (!Number.isFinite(balance)) errors.push('היתרה חייבת להיות מספר תקין')
+        if (rowAccountType === 'Other' && balance < 0) errors.push('לא ניתן לייבא יתרה שלילית לחשבון אורח')
 
-        parsedRows.push({ rowNumber, code, name, className, accountType: rowAccountType, errors })
+        parsedRows.push({
+            rowNumber,
+            code,
+            name,
+            className,
+            accountType: rowAccountType,
+            balance: Number.isFinite(balance) ? Math.round(balance * 100) / 100 : null,
+            errors
+        })
     })
 
     return parsedRows
@@ -152,8 +165,8 @@ const makePreview = (rows) => {
         existingCount: counts.exists || 0,
         duplicateInFileCount: counts['duplicate-in-file'] || 0,
         invalidCount: counts.invalid || 0,
-        rows: rows.map(({ rowNumber, name, className, accountType, errors, status }) => ({
-            rowNumber, name, className, accountType, errors, status
+        rows: rows.map(({ rowNumber, name, className, accountType, balance, errors, status }) => ({
+            rowNumber, name, className, accountType, balance, errors, status
         }))
     }
 }
@@ -207,9 +220,9 @@ const importStudents = async (req, res) => {
                 name: row.name,
                 className: row.className,
                 accountType: row.accountType,
+                balance: row.balance,
                 password: await bcrypt.hash(code, 10),
-                loginCodeLookup: getCodeLookup(code),
-                balance: 0
+                loginCodeLookup: getCodeLookup(code)
             })
             importedCount += 1
         } catch (error) {
@@ -231,34 +244,30 @@ const exportStudents = async (req, res) => {
     }
 
     const accountTypeFilter = accountType === 'all'
-        ? { $or: [
-            { accountType: 'Staff' },
-            { accountType: 'Student', roles: { $ne: 'Admin' } },
-            { accountType: 'Other' },
-            { accountType: { $exists: false }, roles: { $ne: 'Admin' } },
-            { accountType: { $exists: false }, roles: 'Admin' }
-        ] }
-        : accountType === 'Student'
             ? { $or: [
-                { accountType: 'Student', roles: { $ne: 'Admin' } },
-                { accountType: { $exists: false }, roles: { $ne: 'Admin' } }
-            ] }
-            : accountType === 'Staff'
-                ? { $or: [
                 { accountType: 'Staff' },
-                { accountType: { $exists: false }, roles: 'Admin' }
+                { accountType: 'Student' },
+                { accountType: 'Other' },
+                { accountType: { $exists: false } }
+            ] }
+            : accountType === 'Student'
+                ? { $or: [
+                    { accountType: 'Student' },
+                    { accountType: { $exists: false } }
                 ] }
-                : { accountType: 'Other' }
+            : accountType === 'Staff'
+                    ? { accountType: 'Staff' }
+                    : { accountType: 'Other' }
 
     const users = await User.find(accountTypeFilter)
-        .select('name className accountType balance roles')
+            .select('name className accountType balance')
         .sort({ className: 1, name: 1 })
         .lean()
 
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'Student Store'
     workbook.created = new Date()
-    const worksheet = workbook.addWorksheet(accountType === 'all' ? 'חשבונות וחובות' : accountType === 'Staff' ? 'צוות וחובות' : accountType === 'Other' ? 'אורחים וחובות' : 'תלמידים וחובות', {
+    const worksheet = workbook.addWorksheet(accountType === 'all' ? 'חשבונות ויתרות' : accountType === 'Staff' ? 'צוות וחובות' : accountType === 'Other' ? 'אורחים ויתרות' : 'תלמידות וחובות', {
         views: [{ rightToLeft: true }]
     })
     worksheet.columns = [
@@ -273,7 +282,7 @@ const exportStudents = async (req, res) => {
         const balance = Math.round((Number(user.balance) || 0) * 100) / 100
         worksheet.addRow({
             name: user.name,
-            accountTypeLabel: user.accountType === 'Staff' || (!user.accountType && user.roles === 'Admin') ? 'צוות' : user.accountType === 'Other' ? 'אורח' : 'תלמיד',
+            accountTypeLabel: user.accountType === 'Staff' ? 'צוות' : user.accountType === 'Other' ? 'אורח' : 'תלמידה',
             className: user.className || '',
             balance,
             debt: balance < 0 ? Math.abs(balance) : 0

@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import HomePage from './pages/user/HomePage'
 import ExistingUserPage from './pages/user/ExistingUserPage'
 import WelcomePage from './pages/user/WelcomePage'
+import TopUpPage from './pages/user/TopUpPage'
 import ProductsPage from './pages/user/ProductsPage'
 import AdminPage from './pages/admin/AdminPage'
 import RegisterPage from './pages/user/RegisterPage'
@@ -36,6 +37,7 @@ function App() {
             <Route path='existing-user' element={<ExistingUserPage />} />
             <Route path='register' element={<RegisterPage />} />
             <Route path='welcome' element={<WelcomePage />} />
+            <Route path='top-up' element={<TopUpPage />} />
             <Route path='profile' element={<MyProfilePage />} />
             <Route path='products' element={<ProductsPage />} />
             <Route path='checkout' element={<CheckoutPage />} />

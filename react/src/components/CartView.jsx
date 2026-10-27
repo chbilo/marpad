@@ -9,11 +9,14 @@ const CartView = ({
     additionalAmount,
     onCustomAmountChange,
     expectedBalance,
+    isGuest,
     onQuantityChange,
     onRemove,
     onRemoveCustomAmount
 }) => {
-    const accountStatus = formatAccountStatus(expectedBalance)
+    const accountStatus = isGuest && expectedBalance < 0
+        ? { label: 'סכום חסר להשלמת הקנייה', amount: formatPrice(Math.abs(expectedBalance)) }
+        : formatAccountStatus(expectedBalance)
     const hasItems = items.length > 0 || Number(additionalAmount) > 0
 
     return (
@@ -81,9 +84,30 @@ const CartView = ({
                     <strong>{formatPrice(total)}</strong>
                 </div>
                 <div className="cart-total__row">
-                    <span>{accountStatus.label} לאחר הקנייה</span>
+                    <span>
+                        {isGuest && expectedBalance < 0
+                            ? accountStatus.label
+                            : `${accountStatus.label} לאחר הקנייה`}
+                    </span>
                     <strong>{accountStatus.amount}</strong>
                 </div>
+                {isGuest && expectedBalance < 0 && (
+                    <p className="cart-insufficient">
+                        אורח אינו יכול לצבור חוב. יש להטעין כסף לפני השלמת הקנייה.
+                    </p>
+                )}
+                {isGuest && expectedBalance < 0 && (
+                    <Link
+                        className="action-button action-button--secondary cart-checkout-link"
+                        to="/top-up"
+                        state={{
+                            returnTo: '/products',
+                            returnState: { additionalAmount: Number(additionalAmount) || 0 }
+                        }}
+                    >
+                        הטענת כסף
+                    </Link>
+                )}
                 <Link
                     className={`action-button cart-checkout-link${!hasItems || isLoading ? ' action-button--disabled' : ''}`}
                     to={!hasItems || isLoading ? '#' : '/checkout'}

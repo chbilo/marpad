@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const { Server } = require('socket.io')
+const hasAdminAccess = require('../utils/adminAccess')
 
 const configureSocket = (server, corsOptions) => {
     const io = new Server(server, { cors: corsOptions })
@@ -11,6 +12,9 @@ const configureSocket = (server, corsOptions) => {
         }
         try {
             socket.user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+            if (socket.user.roles === 'Admin' && !hasAdminAccess(socket.user)) {
+                return next(new Error('Unauthorized'))
+            }
             next()
         } catch {
             next(new Error('Unauthorized'))
@@ -18,7 +22,7 @@ const configureSocket = (server, corsOptions) => {
     })
 
     io.on('connection', (socket) => {
-        socket.join(`user:${socket.user._id}`)
+        if (socket.user._id) socket.join(`user:${socket.user._id}`)
         if (socket.user.roles === 'Admin') {
             socket.join('admins')
         }

@@ -98,13 +98,26 @@ const checkout = async (req, res) => {
         return res.status(400).json({ message: 'Cart total is invalid' })
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
+    const user = await User.findOneAndUpdate(
+        {
+            _id: req.user._id,
+            $or: [
+                { accountType: { $ne: 'Other' } },
+                { accountType: 'Other', balance: { $gte: total } }
+            ]
+        },
         { $inc: { balance: -total } },
         { returnDocument: 'after', runValidators: true }
     )
     if (!user) {
-        return res.status(404).json({ message: 'User not found' })
+        const existingUser = await User.exists({ _id: req.user._id })
+        if (!existingUser) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+        return res.status(400).json({
+            code: 'INSUFFICIENT_GUEST_BALANCE',
+            message: 'Guests must have sufficient balance to complete a purchase'
+        })
     }
 
     const purchasedItems = (cart?.items || []).map((item) => ({

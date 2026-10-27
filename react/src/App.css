@@ -107,6 +107,27 @@
     gap: 20px;
 }
 
+.login-mode-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.login-mode-selector__button {
+    min-height: 44px;
+    border: 1px solid #1565c0;
+    border-radius: 8px;
+    background: transparent;
+    color: #1565c0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.login-mode-selector__button.is-active {
+    background: #1565c0;
+    color: #fff;
+}
+
 .register-form {
     width: min(100%, 360px);
     display: flex;
@@ -899,15 +920,23 @@
 .user-transfer-section {
     display: grid;
     gap: 16px;
-    padding: 20px;
-    border: 1px solid #d5dbe1;
-    border-radius: 12px;
-    background: #f8fafc;
 }
 
 .user-transfer-section__heading h3 {
-    margin: 0 0 5px;
-    font-size: 1.2rem;
+    margin: 0;
+    color: #123f70;
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.user-transfer-section__heading {
+    display: grid;
+    gap: 5px;
+    padding: 10px 14px;
+    border: 1px solid #c8d9ec;
+    border-right: 5px solid #1565c0;
+    border-radius: 8px;
+    background: #eef5fc;
 }
 
 .user-transfer-section__heading p {
@@ -918,16 +947,16 @@
 
 .user-transfer-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
 }
 
 .user-transfer-card {
     display: grid;
     align-content: start;
-    gap: 16px;
+    gap: 10px;
     min-width: 0;
-    padding: 18px;
+    padding: 14px 18px;
     border: 1px solid #d5dbe1;
     border-radius: 12px;
     background: #fff;

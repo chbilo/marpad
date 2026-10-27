@@ -1,6 +1,7 @@
 import { useContext } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
+import AdminTopUpNotifications from './AdminTopUpNotifications'
 
 const Header = () => {
     const navigate = useNavigate()
@@ -26,6 +27,7 @@ const Header = () => {
                         יציאה
                     </button>
                 )}
+                <AdminTopUpNotifications key={localStorage.getItem('accessToken') || 'guest'} />
             </div>
         </header>
     )

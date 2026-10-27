@@ -20,6 +20,7 @@ const WelcomePage = () => {
                 </p>
             </div>
             <div className="welcome-actions">
+                <Link className="action-button" to="/top-up">הטענת כסף</Link>
                 <Link className="action-button action-button--secondary" to="/products">ביצוע רכישה</Link>
                 <Link className="action-button action-button--secondary" to="/profile">הפרטים שלי</Link>
             </div>

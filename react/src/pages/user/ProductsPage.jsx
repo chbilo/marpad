@@ -129,6 +129,7 @@ const ProductsPage = () => {
                     total={orderTotal}
                     additionalAmount={additionalAmount}
                     expectedBalance={expectedBalance}
+                    isGuest={userInfo.accountType === 'Other'}
                     onQuantityChange={handleQuantityChange}
                     onRemove={handleRemoveFromCart}
                     onRemoveCustomAmount={() => setAdditionalAmount('0')}

@@ -19,7 +19,9 @@ const CheckoutPage = () => {
     const [isPaying, setIsPaying] = useState(false)
     const [error, setError] = useState('')
     const [receipt, setReceipt] = useState(null)
+    const [requiresTopUp, setRequiresTopUp] = useState(false)
     const token = localStorage.getItem('accessToken')
+    const isGuest = userInfo.accountType === 'Other'
     const authConfig = { headers: { Authorization: `Bearer ${token}` } }
 
     useEffect(() => {
@@ -61,6 +63,11 @@ const CheckoutPage = () => {
             localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
             setItems([])
         } catch (requestError) {
+            if (requestError.response?.data?.code === 'INSUFFICIENT_GUEST_BALANCE') {
+                setRequiresTopUp(true)
+                setError('אורח חייב להטעין כסף לפני השלמת הקנייה.')
+                return
+            }
             setError(requestError.response?.data?.message || 'אישור הקנייה נכשל. נסו שוב.')
         } finally {
             setIsPaying(false)
@@ -71,31 +78,15 @@ const CheckoutPage = () => {
         return (
             <section className="checkout-page" aria-labelledby="checkout-title">
                 <h1 className="page-title" id="checkout-title">הקנייה הושלמה</h1>
-                <p className="checkout-success" role="status">הקנייה נרשמה והחשבון עודכן.</p>
-                <ul className="checkout-items">
-                    {receipt.items.map((item, index) => (
-                        <li className="checkout-item" key={`${item.product?._id || 'item'}-${index}`}>
-                            <span>{item.product?.name || 'מוצר'} × {item.quantity}</span>
-                            <strong>{formatPrice(Number(item.product?.price || 0) * item.quantity)}</strong>
-                        </li>
-                    ))}
-                    {receipt.additionalAmount > 0 && (
-                        <li className="checkout-item" key="custom-additional">
-                            <div>
-                                <h2>אחר</h2>
-                                <p>סכום שהוזן ידנית</p>
-                            </div>
-                            <strong>{formatPrice(receipt.additionalAmount)}</strong>
-                        </li>
-                    )}
-                </ul>
+                <p className="checkout-success" role="status">הקנייה הושלמה והיתרה עודכנה.</p>
                 <div className="checkout-totals">
-                    <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(receipt.total)}</strong></div>
+                    <div><span>סך הכול לקנייה</span><strong>{formatPrice(receipt.total)}</strong></div>
                     <div>
                         <span>{formatAccountStatus(receipt.balance).label} לאחר הקנייה</span>
                         <strong>{formatAccountStatus(receipt.balance).amount}</strong>
                     </div>
                 </div>
+                <p className="checkout-balance-note">הנפקת קבלות - במזכירות הסמינר.</p>
                 <Link className="action-button" to="/welcome">חזרה לחשבון</Link>
             </section>
         )
@@ -140,11 +131,40 @@ const CheckoutPage = () => {
                     <div className="checkout-totals">
                         <div><span>עלות הקנייה הנוכחית</span><strong>{formatPrice(total)}</strong></div>
                         <div className="checkout-balance">
-                            <span>{formatAccountStatus(expectedBalance).label} לאחר הקנייה</span>
-                            <strong>{formatAccountStatus(expectedBalance).amount}</strong>
+                            <span>
+                                {isGuest && expectedBalance < 0
+                                    ? 'סכום חסר להשלמת הקנייה'
+                                    : `${formatAccountStatus(expectedBalance).label} לאחר הקנייה`}
+                            </span>
+                            <strong>
+                                {isGuest && expectedBalance < 0
+                                    ? formatPrice(Math.abs(expectedBalance))
+                                    : formatAccountStatus(expectedBalance).amount}
+                            </strong>
                         </div>
                     </div>
-                    <button className="action-button checkout-pay" type="button" disabled={isPaying} onClick={handlePay}>
+                    {(requiresTopUp || (isGuest && expectedBalance < 0)) && (
+                        <div className="checkout-insufficient" role="status">
+                            <p>
+                                {isGuest
+                                    ? 'אורח אינו יכול לצבור חוב, ולכן יש להטעין כסף לפני השלמת הקנייה.'
+                                    : 'אפשר להמשיך בקנייה ולצבור חוב, או להטעין כסף לפני הקנייה.'}
+                            </p>
+                            <Link
+                                className="action-button action-button--secondary"
+                                to="/top-up"
+                                state={{ returnTo: '/checkout', returnState: { additionalAmount } }}
+                            >
+                                הטענת כסף
+                            </Link>
+                        </div>
+                    )}
+                    <button
+                        className="action-button checkout-pay"
+                        type="button"
+                        disabled={isPaying || (isGuest && expectedBalance < 0) || requiresTopUp}
+                        onClick={handlePay}
+                    >
                         {isPaying ? 'רושם קנייה...' : 'אישור קנייה'}
                     </button>
                 </>
